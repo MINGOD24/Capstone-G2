@@ -1,25 +1,16 @@
-from classes import *
+# CONJUNTOS
+NP = {} # set nodos de carga
+ND = {} # set nodos de descarga
+N_v = {} # set de nodos que puede visitar el barco v
+NP_v = {} # set de nodos de carga que pueden ser visitados por el barco v
+ND_v = {} # set de nodos de descarga que pueden ser visitados por el barco v
+A_v = {} # set de tuplas de nodos que el barco v puede viajar
+Puertos_i = {} # set de puertos para cada nodo
 
-
-with open("Barcos.csv", encoding="utf-8") as archivo:
-    V = []
-    contador = 0
-    for linea in archivo:
-        a = linea.strip().split(";")
-        id_barco = a[0]
-        puerto_inicio = a[1]
-        tiempo_inicio = a[2]
-        capacidad = a[3]
-        if contador == 0:
-            pass
-        else:
-            barco = Barco(id_barco, puerto_inicio, tiempo_inicio, capacidad)
-            V.append(barco)
-        contador += 1
-    Kv = []
-    for boat in V:
-        Kv.append(boat.capacidad)
-
+# PARAMETROS
+C_i_j_v = {} # costo zarpar de i a j usando barco v
+CS_i = {} # costo Spot
+K_v = {} # capacidad que posee cada barco
 
 with open("Cargo.csv", encoding="utf-8") as archivo:
     lista_cargos = []
@@ -38,59 +29,77 @@ with open("Cargo.csv", encoding="utf-8") as archivo:
         if contador == 0:
             pass
         else:
-            cargo = Cargo(id, puertoOrigen, puertoDestino, tamano, costoSpot, LTCarga, RTCarga, LTDescarga, RTDescarga)
-            lista_cargos.append(cargo)
-        contador += 1
-    contador2 = 1
-    NP = []
-    ND = []
-    for cargoe in lista_cargos:
-        cargo = CargoCarga(contador2, cargoe.id, cargoe.puertoOrigen, cargoe.tamano, cargoe.costoSpot, cargoe.LTCarga, cargoe.RTCarga, cargoe.LTDescarga, cargoe.RTDescarga)
-        NP.append(cargo)
-        contador2 += 1
-    for cargoe in lista_cargos:
-        cargo = CargoDescarga(contador2, cargoe.id, cargoe.puertoOrigen, cargoe.tamano, cargoe.costoSpot, cargoe.LTCarga, cargoe.RTCarga, cargoe.LTDescarga, cargoe.RTDescarga)
-        ND.append(cargo)
-        contador2 += 1
-    
-        
-    
-
-
-with open("Puertos.csv", encoding="utf-8") as archivo:
-    lista_puertos = []
-    contador = 0
-    for linea in archivo:
-        a = linea.strip().split(";")
-        id = a[0]
-        nombre = a[1]
-        longitud = a[2]
-        latitud = a[3]
-        if contador == 0:
-            pass
-        else:
-            puerto = Puerto(id, nombre, longitud, latitud)
-            lista_puertos.append(puerto)
+            CS_i[id] = costoSpot
+            Puertos_i[id] = puertoOrigen
+            Puertos_i[id + 60] = puertoDestino
         contador += 1
 
 
-with open("CompatibilidadCargos.csv", encoding="utf-8") as archivo:
-    NV = []
+with open("Barcos.csv", encoding="utf-8") as archivo:
     contador = 0
     for linea in archivo:
         a = linea.strip().split(";")
         id_barco = a[0]
-        cargos = a[1:]
-        cargos = [x for x in cargos if x != '']
-        barco = [x for x in V if x.id == id_barco]
+        puerto_inicio = a[1]
+        tiempo_inicio = a[2]
+        capacidad = a[3]
         if contador == 0:
             pass
         else:
-            comp = CompatibilidadCargo(barco, cargos)
-            NV.append(comp)
+            K_v[id_barco] = capacidad
         contador += 1
-    NPV = [x for x in NP for y in NV if x.idOriginal in y.cargos] 
-    for x in NPV:
-        print("-----------\n\n")
-        print(x.idOriginal)
 
+
+with open("CompatibilidadCargos.csv", encoding="utf-8") as archivo:
+    lista_nodos_barcos = []
+    contador = 0
+    for linea in archivo:
+        a = linea.strip().split(";")
+        id_barco = a[0]
+        nodos_descarga = []
+        nodos_carga = a[1:]
+        for cargo in nodos_carga:
+            nodos_descarga.append(cargo + 60)
+        if contador == 0:
+            pass
+        else:
+            N_v[id_barco] = nodos_carga + nodos_descarga + [f"O({id_barco})"] + [f"D({id_barco})"] # Todos los nodos en los cuales puede estar un barco
+            NP_v[id_barco] = nodos_carga
+            ND_v[id_barco] = nodos_descarga
+            lista_nodos =  N_v[id_barco]
+            lista_tuplas = []
+            for nodo in lista_nodos:
+                if nodo == f"D({id_barco})":
+                    continue
+                for nodo1 in lista_nodos:
+                    lista_tuplas.append(tuple(nodo,nodo1))
+                    lista_nodos_barcos.append(tuple(nodo,nodo1,id_barco)
+
+
+            A_v[id_barco] = lista_tuplas
+        contador += 1
+
+
+with open("Costo - Tiempos Puertos.csv", encoding="utf-8") as archivo:
+    contador = 0
+    for linea in archivo:
+        a = linea.strip().split(";")
+        id_barco = a[0]
+        id_cargo = a[1]
+        tiempo_origen = a[2]
+        costo_origen = a[3]
+        tiempo_destino = a[4]
+        costo_destino = a[5]
+
+        if contador == 0:
+            pass
+        else:
+            if costo_origen != -1:
+                    C_i_j_v[tuple(id_cargo, id_cargo + 60, id_barco)] = costo_origen 
+            else:
+                pass
+
+
+                
+        contador +=1
+        
