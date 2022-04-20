@@ -110,6 +110,17 @@ with open("Costo - Tiempos Puertos.csv", encoding="utf-8") as archivo:
                 
         contador +=1
 
+# pasar a puerto las tuplas posibles
+for i in range(len(lista_nodos_barcos)):
+    tupla = lista_nodos_barcos[i]
+    origen = tupla[0]
+    destino = tupla[1]
+    barco = tupla[2]
+    p_origen = Puertos_i[origen]
+    p_destino = Puertos_i[destino]
+    tupla_puertos = tuple(p_origen, p_destino, barco)
+    lista_nodos_barcos[i] = [tupla, tupla_puertos]
+
 
 with open("Costos Transporte.csv", encoding="utf-8") as archivo:
     contador = 0
@@ -120,25 +131,23 @@ with open("Costos Transporte.csv", encoding="utf-8") as archivo:
         id_puerto_destino = a[2]
         tiempo_viaje = a[3]
         costo_viaje = a[4]
-        nodo_destino = 0
-        nodo_origen = 0
 
         if contador == 0:
             pass
         else:
-            # {id_nodo: puerto} --> para nodos de carga y descarga
-            nodos = Puertos_i.keys()
-            for nodo in nodos:
-                puerto = Puertos_i[nodo]
-                if id_puerto_origen == puerto:
-                    nodo_origen = nodo
-                elif id_puerto_destino == puerto:
-                    nodo_destino = nodo
-
-            # revisar esto
-            actual = C_i_j_v[tuple(nodo_origen, nodo_destino, id_barco)] 
-            actual += costo_viaje
-            C_i_j_v[tuple(nodo_origen, nodo_destino, id_barco)] = actual
+            for lista in lista_nodos_barcos:
+                tupla_puertos = lista[1]
+                tupla_nodos = lista[0]
+                puerto_origen = tupla_puertos[0]
+                puerto_destino = tupla_puertos[1]
+                barco = tupla_puertos[2]
+                if id_barco == barco:
+                    if id_puerto_origen == puerto_origen and id_puerto_destino == puerto_destino:
+                        # si es la tupla que busco 
+                        # revisar esto
+                        actual = C_i_j_v[tupla_nodos] 
+                        actual += costo_viaje
+                        C_i_j_v[tupla_nodos] = actual
 
         contador +=1
 
