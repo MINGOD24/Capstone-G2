@@ -1,16 +1,18 @@
-# CONJUNTOS
-NP = {} # set nodos de carga
-ND = {} # set nodos de descarga
-N_v = {} # set de nodos que puede visitar el barco v
-NP_v = {} # set de nodos de carga que pueden ser visitados por el barco v
-ND_v = {} # set de nodos de descarga que pueden ser visitados por el barco v
-A_v = {} # set de tuplas de nodos que el barco v puede viajar
-Puertos_i = {} # set de puertos para cada nodo
+# cada cargo son dos nodos
+
+# CONJUNTOS PROBLEMA
+N_v = {} # {id_barco: nodos carga, descarga, O, D} --> nodos que puede visitar el barco v
+NP_v = {} # {id_barco: nodos carga} --> nodos de carga que puede visitar el barco v
+ND_v = {} # {id_barco: nodos descarga} --> nodos de descarga que puede visitar el barco v
+A_v = {} # {id_barco: (nodo_carga, nodo_descarga)} --> tuplas de nodos que el barco v puede viajar
+
+# CONJUNTOS CREADOS
+Puertos_i = {} # {id_nodo: puerto} --> para nodos de carga y descarga
 
 # PARAMETROS
-C_i_j_v = {} # costo zarpar de i a j usando barco v
+C_i_j_v = {} # {(id_cargo, id_cargo + 60, id_barco): costo_origen}
 CS_i = {} # costo Spot
-K_v = {} # capacidad que posee cada barco
+K_v = {} # {id_barco: capacidad}
 
 with open("Cargo.csv", encoding="utf-8") as archivo:
     lista_cargos = []
@@ -63,22 +65,27 @@ with open("CompatibilidadCargos.csv", encoding="utf-8") as archivo:
         if contador == 0:
             pass
         else:
-            N_v[id_barco] = nodos_carga + nodos_descarga + [f"O({id_barco})"] + [f"D({id_barco})"] # Todos los nodos en los cuales puede estar un barco
+            lista_nodos = nodos_carga + nodos_descarga + [f"O({id_barco})"] + [f"D({id_barco})"] # Todos los nodos en los cuales puede estar un barco
+            N_v[id_barco] = lista_nodos
             NP_v[id_barco] = nodos_carga
             ND_v[id_barco] = nodos_descarga
-            lista_nodos =  N_v[id_barco]
             lista_tuplas = []
             for nodo in lista_nodos:
                 if nodo == f"D({id_barco})":
                     continue
                 for nodo1 in lista_nodos:
                     lista_tuplas.append(tuple(nodo,nodo1))
-                    lista_nodos_barcos.append(tuple(nodo,nodo1,id_barco)
+                    lista_nodos_barcos.append(tuple(nodo,nodo1,id_barco)) # todas las combinaciones que pueden hacer todos los barcos
 
+            A_v[id_barco] = lista_tuplas # para el barco en cuestión, todas las tuplas posibles
 
-            A_v[id_barco] = lista_tuplas
         contador += 1
 
+
+        
+# inicializar dict
+for tupla in lista_nodos_barcos:
+    C_i_j_v[tupla] = 0
 
 with open("Costo - Tiempos Puertos.csv", encoding="utf-8") as archivo:
     contador = 0
@@ -95,11 +102,50 @@ with open("Costo - Tiempos Puertos.csv", encoding="utf-8") as archivo:
             pass
         else:
             if costo_origen != -1:
-                    C_i_j_v[tuple(id_cargo, id_cargo + 60, id_barco)] = costo_origen 
+                # en esta parte se agrega al dicc los costos de carga y descarga
+                # luego hay que agregar el costo de transporte para todas las combinaciones
+                C_i_j_v[tuple(id_cargo, id_cargo + 60, id_barco)] = costo_origen + costo_destino # hay q sumar transporte
             else:
                 pass
-
-
                 
         contador +=1
-        
+
+
+with open("Costos Transporte.csv", encoding="utf-8") as archivo:
+    contador = 0
+    for linea in archivo:
+        a = linea.strip().split(";")
+        id_barco = a[0]
+        id_puerto_origen = a[1]
+        id_puerto_destino = a[2]
+        tiempo_viaje = a[3]
+        costo_viaje = a[4]
+        nodo_destino = 0
+        nodo_origen = 0
+
+        if contador == 0:
+            pass
+        else:
+            # {id_nodo: puerto} --> para nodos de carga y descarga
+            nodos = Puertos_i.keys()
+            for nodo in nodos:
+                puerto = Puertos_i[nodo]
+                if id_puerto_origen == puerto:
+                    nodo_origen = nodo
+                elif id_puerto_destino == puerto:
+                    nodo_destino = nodo
+
+            # revisar esto
+            actual = C_i_j_v[tuple(nodo_origen, nodo_destino, id_barco)] 
+            actual += costo_viaje
+            C_i_j_v[tuple(nodo_origen, nodo_destino, id_barco)] = actual
+
+        contador +=1
+
+
+# print(Puertos_i) # {id_nodo: puerto} --> para nodos de carga y descarga
+# print(N_v)  # {id_barco: nodos carga, descarga, O, D} --> nodos que puede visitar el barco v
+# print(NP_v) # {id_barco: nodos carga} --> nodos de carga que puede visitar el barco v
+# print(ND_v) # {id_barco: nodos descarga} --> nodos de descarga que puede visitar el barco v
+# print(A_v)  # {id_barco: (nodo_carga, nodo_descarga)} --> tuplas de nodos que el barco v puede viajar
+# print(C_i_j_v)  # {(id_cargo, id_cargo + 60, id_barco): costo_origen}
