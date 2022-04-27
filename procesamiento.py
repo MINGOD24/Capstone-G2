@@ -16,6 +16,8 @@ Tiempos_v = {} # Tiempo de inicio del barco v
 Tamano_i = {} # tamaño del cargo i
 CP_i_j_v = {} # costo de ir de un puerto i a un puerto j con el barco v
 TP_i_j_v = {} # tiempo de ir de un puerto i a un puerto j con el barco v
+Lat_Long_P = {} # (latitud, longitud) del puerto p
+Nombre_P = {} # nombre del puerto p
 
 # PARAMETROS
 C_i_j_v = {} # {(id_cargo, id_cargo, id_barco): costo_origen}
@@ -66,6 +68,20 @@ with open("Barcos.csv", encoding="utf-8") as archivo:
             K_v[id_barco] = capacidad
         contador += 1
 
+with open("Puertos.csv", encoding="utf-8") as archivo:
+    contador = 0
+    for linea in archivo:
+        a = linea.strip().split(";")
+        id_puerto = a[0]
+        nombre_puerto = a[1]
+        longitud = a[2]
+        latitud = a[3]
+        if contador == 0:
+            pass
+        else:
+            Lat_Long_P[int(id_puerto)] = tuple([latitud, longitud])
+            Nombre_P[int(id_puerto)] = nombre_puerto
+        contador += 1
 
 with open("CompatibilidadCargos.csv", encoding="utf-8") as archivo:
     lista_nodos_barcos = []
