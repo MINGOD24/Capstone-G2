@@ -1,0 +1,5 @@
+﻿ID_Barco;ID_Puerto ;Tiempo_Inicio;Capacidad;Nombre_Barco;Nombre_Puerto
+1;3;69;16500;ShortDryBulk16_1;ROTTERDAM
+2;21;0;5800;ShortDryBulk5_2;SETUBAL
+3;17;0;3570;ShortDryBulk3_3;GDANSK
+4;20;0;3570;ShortDryBulk3_4;LISBON
