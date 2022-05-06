@@ -252,11 +252,11 @@ from gurobipy import GRB
 
 # modelo
 m = gp.Model("Asignacion de Rutas optimas para una compania de Transporte Maritimo")
-m.Params.TimeLimit = 300  # 5 minutes
+# m.Params.TimeLimit = 300  # 5 minutes
 
 # variables
 
-x = m.addVars(list(C_i_j_v.keys()), vtype = GRB.BINARY, name = "x_ijv")
+x = m.addVars(list(C_i_j_v.keys()), lb=0, ub=1, vtype = GRB.CONTINUOUS, name = "x_ijv")
 y = m.addVars(list(NP), vtype = GRB.BINARY, name = "y_i")
 t = m.addVars(nodos_con_barcos, vtype = GRB.CONTINUOUS, name = "t_iv")
 l = m.addVars(nodos_con_barcos, vtype = GRB.CONTINUOUS, name = "l_iv")
@@ -335,7 +335,7 @@ m.addConstrs(restriccion_15(v,i,j) for v in V for i,j in A_v[int(v)] if tuple([i
 
 
 m.optimize()
-# m.write("out.sol")
-print(f"Optimal objective value: {m.objVal}")
+m.write("outcont.sol")
+# print(f"Optimal objective value: {m.objVal}")
 
-m.printAttr('X')
+# m.printAttr('X')
