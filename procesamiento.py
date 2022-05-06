@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from sqlalchemy import except_
 start_time = datetime.now()
 
 print("Enter 1 for the big dataset and 2 for the small dataset:")
@@ -77,8 +79,8 @@ with open(f"{Datos}/Barcos.csv", encoding="utf-8") as archivo:
         else:
             Puertos_i[f"O({id_barco})"] = puerto_inicio
             Puertos_i[f"D({id_barco})"] = f"D({id_barco})"
-            Tiempos_i[f'O({id_barco})'] = tuple([tiempo_inicio, 1500])
-            Tiempos_i[f'D({id_barco})'] = tuple([0, 1500])
+            Tiempos_i[f'O({id_barco})'] = tuple([tiempo_inicio, 2000])
+            Tiempos_i[f'D({id_barco})'] = tuple([0, 2000])
             Tiempos_v[int(id_barco)] = tiempo_inicio
             K_v[id_barco] = capacidad
             V.append(id_barco)
@@ -172,12 +174,13 @@ with open(f"{Datos}/Costo-Tiempos-Puertos.csv", encoding="utf-8") as archivo:
                 lista_factibles_cargas = [(i,j,v) for (i,j,v) in lista_nodos_barcos if j == id_cargo_carga and v == id_barco and i != j and i != f'D({id_barco})']
                 for caso_cargas in lista_factibles_cargas:
                     C_i_j_v[caso_cargas] += int(costo_carga) 
+                    T_i_j_v[caso_cargas] = int(tiempo_origen)
                 
                 #caso descarga
                 lista_factibles_descargas = [(i,j,v) for (i,j,v) in lista_nodos_barcos if j == id_cargo_descarga and v == id_barco and i != j and i != f'D({id_barco})']
                 for caso_descarga in lista_factibles_descargas:
-                    C_i_j_v[caso_descarga] += int(costo_descarga) 
-
+                    C_i_j_v[caso_descarga] += int(costo_descarga)
+                    T_i_j_v[caso_descarga] = int(tiempo_destino) 
 
             else:
                 pass
@@ -214,11 +217,15 @@ for tupla in lista_nodos_barcos or tupla[0] == f'D({tupla[2]})':
     except:
         p_destino = Puertos_i[tupla[1]]
     C_i_j_v[tupla] += CP_i_j_v[tuple([p_origen, p_destino, id_barco])]
-    T_i_j_v[tupla] = TP_i_j_v[tuple([p_origen, p_destino, id_barco])]
+    try:
+        T_i_j_v[tupla] += int(TP_i_j_v[tuple([p_origen, p_destino, id_barco])])
+    except:
+        T_i_j_v[tupla] = int(TP_i_j_v[tuple([p_origen, p_destino, id_barco])])
+    
 
 end_time = datetime.now()
 print('Duración Preprocesamiento: {}'.format(end_time - start_time))
-
+print(C_i_j_v['O(1)', '11', '1'])
 
 
 # print(T_i_j_v[('1', '5', '1')])
@@ -245,6 +252,7 @@ from gurobipy import GRB
 
 # modelo
 m = gp.Model("Asignacion de Rutas optimas para una compania de Transporte Maritimo")
+m.Params.TimeLimit = 300  # 5 minutes
 
 # variables
 
@@ -302,6 +310,9 @@ def restriccion_13(v,i):
 def restriccion_14(v,i):
     return (l[i, v] <= int(K_v[v]))
 
+def restriccion_15(v,i,j):
+    return (x[i,j,v] + x[j,i,v] <= 1)
+
 
 # Implementacion
 
@@ -320,8 +331,11 @@ m.addConstrs(restriccion_11(v,i,j) for v in V for j in NP_v[v] for i,k in A_v[in
 m.addConstrs(restriccion_12(v,i,j) for v in V for j in NP_v[v] for i,k in A_v[int(v)] if k == str(n + int(j)))
 m.addConstrs(restriccion_13(v,i) for v in V for i in NP_v[v])
 m.addConstrs(restriccion_14(v,i) for v in V for i in NP_v[v])
+m.addConstrs(restriccion_15(v,i,j) for v in V for i,j in A_v[int(v)] if tuple([i,j,v]) in C_i_j_v and tuple([j,i,v]) in C_i_j_v)
+
 
 m.optimize()
+# m.write("out.sol")
 print(f"Optimal objective value: {m.objVal}")
 
 m.printAttr('X')
