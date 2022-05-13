@@ -3,16 +3,23 @@ from datetime import datetime
 from sqlalchemy import except_
 start_time = datetime.now()
 
+
+##### Se solicita al usuario elegir el set de datos a utilizar ####
+
 print("Enter 1 for the big dataset and 2 for the small dataset:")
 setDatos = input()
 Datos = 'set' + setDatos
+
+##### Se define la cantidad de nodos que habran dependiendo del set escogido anteriormente ####
 
 if setDatos == '1':
     n = 60
 elif setDatos == '2':
     n = 15
 
-# cada cargo son dos nodos
+
+
+##### Se definen los diccionarios y listas que se llenaran a la hora de preprocesar los datos para luego utilizarlos en el modelo ####
 
 # CONJUNTOS PROBLEMA
 V = [] # id de los barcos
@@ -38,6 +45,10 @@ C_i_j_v = {} # {(id_cargo, id_cargo, id_barco): costo_origen}
 T_i_j_v = {} # {(id_cargo, id_cargo, id_barco): costo_origen}
 CS_i = {} # costo Spot
 K_v = {} # {id_barco: capacidad}
+
+
+
+##### Se abre el archivo con la información de cargos ####
 
 with open(f"{Datos}/Cargo.csv", encoding="utf-8") as archivo:
     lista_cargos = []
@@ -66,6 +77,8 @@ with open(f"{Datos}/Cargo.csv", encoding="utf-8") as archivo:
         contador += 1
 
 
+##### Se abre el archivo con la información de Barcos ####
+
 with open(f"{Datos}/Barcos.csv", encoding="utf-8") as archivo:
     contador = 0
     for linea in archivo:
@@ -86,6 +99,9 @@ with open(f"{Datos}/Barcos.csv", encoding="utf-8") as archivo:
             V.append(id_barco)
         contador += 1
 
+
+##### Se abre el archivo con la información de Puertos ####
+
 with open(f"{Datos}/Puertos.csv", encoding="utf-8") as archivo:
     contador = 0
     for linea in archivo:
@@ -100,6 +116,9 @@ with open(f"{Datos}/Puertos.csv", encoding="utf-8") as archivo:
             Lat_Long_P[int(id_puerto)] = tuple([latitud, longitud])
             Nombre_P[int(id_puerto)] = nombre_puerto
         contador += 1
+
+
+##### Se abre el archivo con la información de que cargo puede llevar cada barco ####
 
 with open(f"{Datos}/CompatibilidadCargos.csv", encoding="utf-8") as archivo:
     lista_nodos_barcos = []
@@ -135,8 +154,8 @@ with open(f"{Datos}/CompatibilidadCargos.csv", encoding="utf-8") as archivo:
         contador += 1
 
 
-        
-# inicializar dict
+##### Se Inicializan los diccionarios con todas las tuplas posibles factibles ####        
+
 for tupla in lista_nodos_barcos:
     C_i_j_v[tupla] = 0
     id_barco = tupla[2]
@@ -150,6 +169,10 @@ for tupla in lista_nodos_barcos:
         p_destino = Puertos_i[tupla[1]]
     CP_i_j_v[tuple([p_origen, p_destino, id_barco])] = 0
     TP_i_j_v[tuple([p_origen, p_destino, id_barco])] = 0
+
+
+##### Se abre el archivo con la información de los costos y tiempos de viajes entre puertos ####
+
 
 with open(f"{Datos}/Costo-Tiempos-Puertos.csv", encoding="utf-8") as archivo:
     contador = 0
@@ -187,6 +210,10 @@ with open(f"{Datos}/Costo-Tiempos-Puertos.csv", encoding="utf-8") as archivo:
                 
         contador +=1
 
+
+##### Se abre el archivo con la información de los costos asociados a transportar los cargos ####
+
+
 with open(f"{Datos}/Costos-Transporte.csv", encoding="utf-8") as archivo:
     contador = 0
     for linea in archivo:
@@ -223,50 +250,37 @@ for tupla in lista_nodos_barcos or tupla[0] == f'D({tupla[2]})':
         T_i_j_v[tupla] = int(TP_i_j_v[tuple([p_origen, p_destino, id_barco])])
     
 
+
+##### Se finaliza el preprocesamiento y se imprime el tiempo que se demoro en realizarlo ####
+
 end_time = datetime.now()
 print('Duración Preprocesamiento: {}'.format(end_time - start_time))
-print(C_i_j_v['O(1)', '11', '1'])
 
 
-# print(T_i_j_v[('1', '5', '1')])
-# print(C_i_j_v[('1', '5', '1')])
 
-# dict_items = C_i_j_v.items()
+#### Se da inicio añ Modelo de Optimización ####
 
-# first_two = list(dict_items)[:30]
-# print(first_two)
-
-
-# print(Puertos_i) # {id_nodo: puerto} --> para nodos de carga y descarga
-# print(N_v)  # {id_barco: nodos carga, descarga, O, D} --> nodos que puede visitar el barco v
-# print(NP_v) # {id_barco: nodos carga} --> nodos de carga que puede visitar el barco v
-# print(ND_v) # {id_barco: nodos descarga} --> nodos de descarga que puede visitar el barco v
-# print(A_v)  # {id_barco: (nodo_carga, nodo_descarga)} --> tuplas de nodos que el barco v puede viajar
-# print(C_i_j_v)  # {(id_cargo, id_cargo + n, id_barco): costo_origen}
-
-#### Modelo de Optimización ####
-
-# Modulos
+# Importamos los modulos necesarios #
 import gurobipy as gp
 from gurobipy import GRB
 
-# modelo
+# Creamos el modelo #
 m = gp.Model("Asignacion de Rutas optimas para una compania de Transporte Maritimo")
-# m.Params.TimeLimit = 300  # 5 minutes
+# m.Params.TimeLimit = 300  # Desactivar comentario para dar maximo de tiempo de 5 minutos
 
-# variables
+# Definimos las variables del modelo
 
-x = m.addVars(list(C_i_j_v.keys()), lb=0, ub=1, vtype = GRB.CONTINUOUS, name = "x_ijv")
+x = m.addVars(list(C_i_j_v.keys()), vtype = GRB.BINARY, name = "x_ijv")
 y = m.addVars(list(NP), vtype = GRB.BINARY, name = "y_i")
 t = m.addVars(nodos_con_barcos, vtype = GRB.CONTINUOUS, name = "t_iv")
 l = m.addVars(nodos_con_barcos, vtype = GRB.CONTINUOUS, name = "l_iv")
 
 
-#Funcion Objetivo
+# Definimos la Funcion Objetivo del modelo
 def funcion_objetivo():
     return gp.quicksum(gp.quicksum(C_i_j_v[i, j, v]*x[i, j, v] for i,j in A_v[int(v)]) for v in V) + gp.quicksum(CS_i[int(i)]*y[i] for i in NP)
 
-#Restricciones
+# Creamos las funciones de las restricciones del modelo
 
 def restriccion_1(i):
     return (gp.quicksum(gp.quicksum(x[i, j, v] for j in N_v[v] if i in NP_v[v] and tuple([i,j,v]) in C_i_j_v) for v in V) + y[i] == 1)
@@ -314,7 +328,7 @@ def restriccion_15(v,i,j):
     return (x[i,j,v] + x[j,i,v] <= 1)
 
 
-# Implementacion
+# Asociamos todas las funciones de restricciones al modelo
 
 m.setObjective(funcion_objetivo(), GRB.MINIMIZE)
 m.addConstrs(restriccion_1(i) for i in NP)
@@ -333,9 +347,10 @@ m.addConstrs(restriccion_13(v,i) for v in V for i in NP_v[v])
 m.addConstrs(restriccion_14(v,i) for v in V for i in NP_v[v])
 m.addConstrs(restriccion_15(v,i,j) for v in V for i,j in A_v[int(v)] if tuple([i,j,v]) in C_i_j_v and tuple([j,i,v]) in C_i_j_v)
 
+#Los siguientes comandos son para imprimir la solucion entregada por el modelo
 
 m.optimize()
 m.write("outcont.sol")
 # print(f"Optimal objective value: {m.objVal}")
 
-# m.printAttr('X')
+m.printAttr('X')
