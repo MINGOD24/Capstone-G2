@@ -258,7 +258,7 @@ print('Duración Preprocesamiento: {}'.format(end_time - start_time))
 
 
 
-#### Se da inicio añ Modelo de Optimización ####
+#### Se da inicio al Modelo de Optimización ####
 
 # Importamos los modulos necesarios #
 import gurobipy as gp
