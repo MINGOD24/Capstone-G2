@@ -1,5 +1,5 @@
 from datetime import datetime
-
+import random
 from sqlalchemy import except_
 start_time = datetime.now()
 
@@ -148,13 +148,13 @@ with open(f"{Datos}/CompatibilidadCargos.csv", encoding="utf-8") as archivo:
                         continue
                     lista_tuplas.append(tuple([nodo,nodo1]))
                     lista_nodos_barcos.append(tuple([nodo,nodo1,id_barco])) # todas las combinaciones que pueden hacer todos los barcos
-                    
+
             A_v[int(id_barco)] = lista_tuplas # para el barco en cuestión, todas las tuplas posibles
 
         contador += 1
 
 
-##### Se Inicializan los diccionarios con todas las tuplas posibles factibles ####        
+##### Se Inicializan los diccionarios con todas las tuplas posibles factibles ####
 
 for tupla in lista_nodos_barcos:
     C_i_j_v[tupla] = 0
@@ -192,22 +192,22 @@ with open(f"{Datos}/Costo-Tiempos-Puertos.csv", encoding="utf-8") as archivo:
             if costo_carga != -1:
                 # en esta parte se agrega al dicc los costos de carga y descarga
                 # luego hay que agregar el costo de transporte para todas las combinaciones
-                
+
                 #caso carga
                 lista_factibles_cargas = [(i,j,v) for (i,j,v) in lista_nodos_barcos if j == id_cargo_carga and v == id_barco and i != j and i != f'D({id_barco})']
                 for caso_cargas in lista_factibles_cargas:
-                    C_i_j_v[caso_cargas] += int(costo_carga) 
+                    C_i_j_v[caso_cargas] += int(costo_carga)
                     T_i_j_v[caso_cargas] = int(tiempo_origen)
-                
+
                 #caso descarga
                 lista_factibles_descargas = [(i,j,v) for (i,j,v) in lista_nodos_barcos if j == id_cargo_descarga and v == id_barco and i != j and i != f'D({id_barco})']
                 for caso_descarga in lista_factibles_descargas:
                     C_i_j_v[caso_descarga] += int(costo_descarga)
-                    T_i_j_v[caso_descarga] = int(tiempo_destino) 
+                    T_i_j_v[caso_descarga] = int(tiempo_destino)
 
             else:
                 pass
-                
+
         contador +=1
 
 
@@ -248,7 +248,7 @@ for tupla in lista_nodos_barcos or tupla[0] == f'D({tupla[2]})':
         T_i_j_v[tupla] += int(TP_i_j_v[tuple([p_origen, p_destino, id_barco])])
     except:
         T_i_j_v[tupla] = int(TP_i_j_v[tuple([p_origen, p_destino, id_barco])])
-    
+
 
 
 ##### Se finaliza el preprocesamiento y se imprime el tiempo que se demoro en realizarlo ####
@@ -266,7 +266,7 @@ from gurobipy import GRB
 
 # Creamos el modelo #
 m = gp.Model("Asignacion de Rutas optimas para una compania de Transporte Maritimo")
-# m.Params.TimeLimit = 300  # Desactivar comentario para dar maximo de tiempo de 5 minutos
+m.Params.TimeLimit = 5  # Desactivar comentario para dar maximo de tiempo de 5 minutos
 
 # Definimos las variables del modelo
 
@@ -287,7 +287,7 @@ def restriccion_1(i):
 
 def restriccion_2(v):
     return (gp.quicksum(x[f'O({v})', j, v] for j in N_v[v] if f'O({v})' != j and tuple([f'O({v})',j,v]) in C_i_j_v) == 1)
-    
+
 def restriccion_3(v, i):
     return ((gp.quicksum(x[i, j, v] for j in N_v[v] if tuple([i,j,v]) in C_i_j_v) - gp.quicksum(x[j, i, v] for j in N_v[v] if tuple([j,i,v]) in C_i_j_v)) == 0)
 
@@ -307,7 +307,7 @@ def restriccion_8(v, i):
     return (t[i, v] + int(T_i_j_v[i, str(n + int(i)), v]) - t[str(n + int(i)), v] <= 0)
 
 def restriccion_9(v,i):
-    return (t[i, v] <= int(Tiempos_i[i][1]))    
+    return (t[i, v] <= int(Tiempos_i[i][1]))
 
 def restriccion_10(v,i):
     return (t[i,v] >= int(Tiempos_i[i][0]))
@@ -320,7 +320,7 @@ def restriccion_12(v,i,j):
 
 def restriccion_13(v,i):
     return (0 <= l[i, v])
-    
+
 def restriccion_14(v,i):
     return (l[i, v] <= int(K_v[v]))
 
@@ -347,10 +347,74 @@ m.addConstrs(restriccion_13(v,i) for v in V for i in NP_v[v])
 m.addConstrs(restriccion_14(v,i) for v in V for i in NP_v[v])
 m.addConstrs(restriccion_15(v,i,j) for v in V for i,j in A_v[int(v)] if tuple([i,j,v]) in C_i_j_v and tuple([j,i,v]) in C_i_j_v)
 
+
+
+### IMPLEMENTACIÓN HEURISTICA ###
+
+#Comenzamos con todos los cargos externalizados
+for i in NP:
+    y[i].lb = 1
+    y[i].ub = 1
+
+
+#Solicitamos al usuario la cantidad de iteraciones para la heuristica
+print("Enter the number of iterations to use:")
+iteraciones = int(input())
+
+m.setParam("LogToConsole", 0)
+m.update() # If you have unstaged changes in the model
+m.optimize()
+
+solucion_best = m.copy()
+solucion_best.setParam("LogToConsole", 0)
+solucion_best.optimize()
+iteracion_actual = 0
+
+
+while iteracion_actual < iteraciones:
+
+    # Copiamos para crear una solucion
+    solucion_current = solucion_best.copy()
+    solucion_current.setParam("LogToConsole", 0)
+    solucion_current.update() # If you have unstaged changes in the model
+    solucion_current.optimize()
+
+    # Destruimos la solucion
+    lista = []
+    for valor in solucion_current.getVars():
+        if valor.X == 1:
+            lista.append(valor)
+    candidatos_a_salir = random.sample(lista, 3) # Tomamos 3 variables
+    for variable in candidatos_a_salir:
+        variable.lb = 0
+        variable.ub = 1
+
+    # Reparammos la solucion
+    solucion_current.update()
+    solucion_current.optimize()
+
+    for valor in solucion_current.getVars():
+        if valor.X == 1:
+            valor.lb = 1
+            valor.ub = 1
+    solucion_current.update()
+    solucion_current.optimize()
+
+    print(f"SOLUCION_BEST: {solucion_best.objVal}, SOLUCION_ACTUAL: {solucion_current.objVal}\n\n")
+    if solucion_current.objVal < solucion_best.objVal:
+        solucion_best = solucion_current.copy()
+        solucion_best.update() # If you have unstaged changes in the model
+        solucion_best.optimize()
+        
+    iteracion_actual += 1
+
+
+
+
+
 #Los siguientes comandos son para imprimir la solucion entregada por el modelo
 
-m.optimize()
-m.write("outcont.sol")
-# print(f"Optimal objective value: {m.objVal}")
+# m.write("outcont.sol")
+# # print(f"Optimal objective value: {m.objVal}")
 
-m.printAttr('X')
+# m.printAttr('X')
